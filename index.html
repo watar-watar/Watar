@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>のむペース</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  :root {
+    --bg: #14141f;
+    --surface: #1e1e2e;
+    --surface2: #282838;
+    --accent: #e94560;
+    --warn: #f5a623;
+    --safe: #4ecdc4;
+    --text: #eaeaea;
+    --muted: #8a93a6;
+    --radius: 16px;
+    --font: -apple-system, 'Helvetica Neue', 'Hiragino Sans', Arial, sans-serif;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 18px 14px 50px;
+  }
+
+  .app { width: 100%; max-width: 400px; }
+
+  h1 {
+    font-size: 1.05rem; font-weight: 800; letter-spacing: 0.14em;
+    color: var(--text); text-align: center; margin-bottom: 4px;
+  }
+  .subtitle { font-size: 0.72rem; color: var(--muted); text-align: center; margin-bottom: 22px; }
+
+  .ring-wrap { position: relative; width: 190px; height: 190px; margin: 0 auto 20px; }
+  .ring-wrap svg { transform: rotate(-90deg); }
+  .ring-bg { fill: none; stroke: var(--surface); stroke-width: 16; }
+  .ring-fg { fill: none; stroke-width: 16; stroke-linecap: round;
+    transition: stroke-dashoffset 0.5s ease, stroke 0.4s ease; }
+  .ring-center { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); text-align: center; }
+  .ring-count { font-size: 2.8rem; font-weight: 800; line-height: 1; transition: color 0.4s; }
+  .ring-label { font-size: 0.7rem; color: var(--muted); margin-top: 2px; }
+
+  .status-msg {
+    font-size: 0.9rem; font-weight: 700; text-align: center;
+    padding: 10px 18px; border-radius: 50px; margin-bottom: 18px;
+    transition: all 0.4s;
+  }
+  .status-safe { background: rgba(78,205,196,0.14); color: var(--safe); }
+  .status-warn { background: rgba(245,166,35,0.18); color: var(--warn); }
+  .status-over { background: rgba(233,69,96,0.18); color: var(--accent); }
+
+  .cards { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 18px; }
+  .card { background: var(--surface); border-radius: 12px; padding: 12px 8px; text-align: center; }
+  .card-label { font-size: 0.6rem; color: var(--muted); letter-spacing: 0.06em; margin-bottom: 4px; }
+  .card-value { font-size: 1.2rem; font-weight: 800; }
+  .card-sub { font-size: 0.6rem; color: var(--muted); }
+
+  .section-title { font-size: 0.68rem; color: var(--muted); letter-spacing: 0.1em;
+    text-transform: uppercase; margin: 0 0 10px 4px; }
+  .drink-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+  .drink-btn {
+    background: var(--surface2); border: 1px solid rgba(255,255,255,0.06); border-radius: 14px;
+    padding: 14px 12px; color: var(--text); cursor: pointer;
+    display: flex; flex-direction: row; align-items: center; gap: 10px;
+    transition: transform 0.1s, background 0.2s; position: relative; text-align: left;
+  }
+  .drink-btn:active { transform: scale(0.96); background: var(--accent); }
+  .drink-emoji { font-size: 1.4rem; flex-shrink: 0; }
+  .drink-name { font-size: 0.82rem; font-weight: 700; flex: 1; padding-right: 18px; }
+  .drink-del { position: absolute; top: 50%; right: 6px; transform: translateY(-50%);
+    font-size: 0.62rem; color: var(--muted);
+    background: var(--surface); border-radius: 50%; width: 20px; height: 20px;
+    border: none; cursor: pointer; padding: 0; line-height: 1;
+    display: flex; align-items: center; justify-content: center; }
+  .drink-add-btn {
+    background: transparent; border: 1.5px dashed var(--muted); border-radius: 14px;
+    padding: 14px 10px; color: var(--muted); cursor: pointer; font-size: 0.8rem;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+  }
+
+  .action-row { display: flex; gap: 8px; margin-bottom: 22px; }
+  .btn { flex: 1; padding: 12px; border: none; border-radius: 12px;
+    font-size: 0.82rem; font-weight: 600; cursor: pointer; transition: transform 0.1s; }
+  .btn:active { transform: scale(0.97); }
+  .btn-undo { background: var(--surface); color: var(--muted); }
+  .btn-reset { background: transparent; border: 1px solid var(--surface2); color: var(--muted); }
+
+  .panel { background: var(--surface); border-radius: var(--radius); padding: 16px; margin-bottom: 16px; }
+  .setting-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .setting-row:last-child { margin-bottom: 0; }
+  .setting-row label { font-size: 0.82rem; }
+  .setting-row input[type=range] { width: 110px; accent-color: var(--accent); }
+  .setting-row .val { font-size: 0.82rem; font-weight: 700; color: var(--accent); width: 56px; text-align: right; }
+
+  .pace-label { display: flex; justify-content: space-between; font-size: 0.66rem; color: var(--muted); margin-bottom: 5px; }
+  .pace-bar-bg { background: var(--bg); border-radius: 4px; height: 7px; overflow: hidden; }
+  .pace-bar-fill { height: 100%; border-radius: 4px; transition: width 0.5s, background 0.5s; }
+
+  .log-empty { font-size: 0.78rem; color: var(--muted); text-align: center; padding: 8px 0; }
+  .log-item { display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.8rem; }
+  .log-item:last-child { border-bottom: none; }
+  .log-time { color: var(--muted); font-size: 0.75rem; }
+  .log-gap { font-size: 0.68rem; color: var(--muted); }
+
+  .disclaimer { font-size: 0.66rem; color: var(--muted); line-height: 1.7;
+    background: var(--surface); border-radius: 12px; padding: 14px; margin-top: 8px; }
+  .disclaimer b { color: var(--warn); }
+
+  .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.78);
+    z-index: 100; align-items: center; justify-content: center; padding: 20px; }
+  .overlay.show { display: flex; }
+  .modal { background: var(--surface); border-radius: 20px; padding: 26px 22px;
+    text-align: center; max-width: 320px; width: 100%; animation: pop 0.25s ease; }
+  @keyframes pop { 0% { transform: scale(0.85); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+  .modal.alert { border: 2px solid var(--accent); }
+  .modal-emoji { font-size: 2.6rem; margin-bottom: 10px; }
+  .modal-title { font-size: 1.15rem; font-weight: 800; margin-bottom: 8px; }
+  .modal-body { font-size: 0.82rem; color: var(--muted); margin-bottom: 18px; line-height: 1.7; white-space: pre-line; }
+  .modal-input { width: 100%; padding: 11px; border-radius: 10px; border: 1px solid var(--surface2);
+    background: var(--bg); color: var(--text); font-size: 0.9rem; margin-bottom: 10px; text-align: center; }
+  .emoji-picker { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-bottom: 14px; }
+  .emoji-opt { font-size: 1.4rem; padding: 6px; border-radius: 8px; cursor: pointer; background: var(--bg); border: 2px solid transparent; }
+  .emoji-opt.selected { border-color: var(--accent); }
+  .modal-btn { background: var(--accent); color: #fff; border: none; padding: 11px 28px;
+    border-radius: 50px; font-size: 0.88rem; font-weight: 700; cursor: pointer; width: 100%; }
+  .modal-btn.ghost { background: transparent; color: var(--muted); margin-top: 8px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <h1>のむペース</h1>
+  <p class="subtitle">今夜のお酒、自分のペースで</p>
+
+  <div class="ring-wrap">
+    <svg width="190" height="190" viewBox="0 0 190 190">
+      <circle class="ring-bg" cx="95" cy="95" r="78"/>
+      <circle class="ring-fg" id="ringFg" cx="95" cy="95" r="78"
+        stroke-dasharray="490" stroke-dashoffset="490"/>
+    </svg>
+    <div class="ring-center">
+      <div class="ring-count" id="ringCount">0</div>
+      <div class="ring-label">杯 / <span id="ringMax">3</span>杯</div>
+    </div>
+  </div>
+
+  <div class="status-msg status-safe" id="statusMsg">🍺 今夜もマイペースで</div>
+
+  <div class="cards">
+    <div class="card"><div class="card-label">経過</div><div class="card-value" id="elapsed">—</div><div class="card-sub">開始から</div></div>
+    <div class="card"><div class="card-label">ペース</div><div class="card-value" id="paceVal">—</div><div class="card-sub">分/杯</div></div>
+    <div class="card"><div class="card-label">残り</div><div class="card-value" id="remaining">3杯</div><div class="card-sub">上限まで</div></div>
+  </div>
+
+  <div class="panel">
+    <div class="pace-label"><span>ゆっくり（安心）</span><span>速い（注意）</span></div>
+    <div class="pace-bar-bg"><div class="pace-bar-fill" id="paceBar" style="width:0%;background:var(--safe)"></div></div>
+  </div>
+
+  <p class="section-title">飲んだら1タップ</p>
+  <div class="drink-grid" id="drinkGrid"></div>
+  <button class="drink-add-btn" onclick="openAddDrink()">＋ 定番のお酒を登録</button>
+
+  <div class="action-row" style="margin-top:10px">
+    <button class="btn btn-undo" onclick="undoDrink()">↩ 1つ取り消す</button>
+    <button class="btn btn-reset" onclick="confirmReset()">今夜をリセット</button>
+  </div>
+
+  <p class="section-title">設定</p>
+  <div class="panel">
+    <div class="setting-row">
+      <label>上限（杯）</label>
+      <input type="range" id="limitSlider" min="1" max="20" value="3" oninput="updateLimit(this.value)">
+      <span class="val" id="limitVal">3杯</span>
+    </div>
+    <div class="setting-row">
+      <label>警告タイミング</label>
+      <input type="range" id="warnSlider" min="1" max="3" value="1" oninput="updateWarn(this.value)">
+      <span class="val" id="warnVal">1杯前</span>
+    </div>
+    <div class="setting-row">
+      <label>ゆっくり目安</label>
+      <input type="range" id="paceSlider" min="20" max="90" value="45" step="5" oninput="updatePaceTarget(this.value)">
+      <span class="val" id="paceTargetVal">45分</span>
+    </div>
+  </div>
+
+  <p class="section-title">今夜の記録</p>
+  <div class="panel" id="logList"><div class="log-empty">まだ記録なし</div></div>
+
+  <div class="disclaimer">
+    <b>ご注意</b><br>
+    このアプリは飲酒量を「記録」して自分で意識するための補助ツールです。健康・酔いの安全を保証するものではありません。体質・体調・状況により適量は人それぞれ違います。本アプリの利用は自己責任でお願いします。妊娠中・授乳中・治療中の方、未成年の飲酒は対象外です。子どもの見守り中・運転前の飲酒は控えましょう。
+  </div>
+</div>
+
+<div class="overlay" id="alertOverlay">
+  <div class="modal alert">
+    <div class="modal-emoji" id="alertEmoji">⚠️</div>
+    <div class="modal-title" id="alertTitle">警告</div>
+    <div class="modal-body" id="alertBody"></div>
+    <button class="modal-btn" onclick="closeAlert()">わかった</button>
+  </div>
+</div>
+
+<div class="overlay" id="addOverlay">
+  <div class="modal">
+    <div class="modal-title" style="margin-bottom:16px">定番のお酒を登録</div>
+    <input class="modal-input" id="newDrinkName" placeholder="例：ハイボール、ビール350" maxlength="12">
+    <div class="emoji-picker" id="emojiPicker"></div>
+    <button class="modal-btn" onclick="saveDrink()">登録する</button>
+    <button class="modal-btn ghost" onclick="closeAddDrink()">やめる</button>
+  </div>
+</div>
+
+<div class="overlay" id="resetOverlay">
+  <div class="modal">
+    <div class="modal-emoji">🌙</div>
+    <div class="modal-title">今夜をリセット</div>
+    <div class="modal-body">今夜の記録を全部消します。よろしいですか？</div>
+    <button class="modal-btn" onclick="doReset()">リセットする</button>
+    <button class="modal-btn ghost" onclick="closeReset()">やめる</button>
+  </div>
+</div>
+
+<script>
+  const STORE_KEY = 'nomupace_v2';
+  let hasStorage = true;
+  try { localStorage.setItem('_t','1'); localStorage.removeItem('_t'); }
+  catch(e) { hasStorage = false; }
+
+  let state = {
+    drinks: [],
+    limit: 3,
+    warnBefore: 1,
+    paceTarget: 45,
+    customDrinks: [
+      { name: 'ビール', emoji: '🍺' },
+      { name: 'ハイボール', emoji: '🥃' },
+      { name: '日本酒', emoji: '🍶' }
+    ]
+  };
+
+  let alertedWarn = false, alertedOver = false, timerInterval = null;
+  let pickedEmoji = '🍺';
+  const EMOJIS = ['🍺','🥃','🍶','🍷','🍸','🍹','🍾','🧃'];
+
+  function load() {
+    if (!hasStorage) return;
+    const raw = localStorage.getItem(STORE_KEY);
+    if (raw) {
+      try {
+        const saved = JSON.parse(raw);
+        state.limit = saved.limit ?? state.limit;
+        state.warnBefore = saved.warnBefore ?? state.warnBefore;
+        state.paceTarget = saved.paceTarget ?? state.paceTarget;
+        state.customDrinks = saved.customDrinks ?? state.customDrinks;
+        state.drinks = saved.drinks ?? [];
+        document.getElementById('limitSlider').value = state.limit;
+        document.getElementById('warnSlider').value = state.warnBefore;
+        document.getElementById('paceSlider').value = state.paceTarget;
+      } catch(e) {}
+    }
+  }
+  function save() {
+    if (!hasStorage) return;
+    localStorage.setItem(STORE_KEY, JSON.stringify(state));
+  }
+
+  function addDrink(name, emoji) {
+    state.drinks.push({ time: new Date().toISOString(), name, emoji });
+    if (state.drinks.length === 1) startTimer();
+    save(); checkAlerts(); render();
+  }
+  function undoDrink() {
+    if (!state.drinks.length) return;
+    state.drinks.pop();
+    alertedWarn = false; alertedOver = false;
+    if (!state.drinks.length) stopTimer();
+    save(); render();
+  }
+
+  function openAddDrink() {
+    document.getElementById('newDrinkName').value = '';
+    pickedEmoji = '🍺';
+    renderEmojiPicker();
+    document.getElementById('addOverlay').classList.add('show');
+  }
+  function closeAddDrink() { document.getElementById('addOverlay').classList.remove('show'); }
+  function renderEmojiPicker() {
+    document.getElementById('emojiPicker').innerHTML = EMOJIS.map(e =>
+      `<div class="emoji-opt ${e===pickedEmoji?'selected':''}" onclick="pickEmoji('${e}')">${e}</div>`
+    ).join('');
+  }
+  function pickEmoji(e) { pickedEmoji = e; renderEmojiPicker(); }
+  function saveDrink() {
+    const name = document.getElementById('newDrinkName').value.trim();
+    if (!name) return;
+    state.customDrinks.push({ name, emoji: pickedEmoji });
+    save(); closeAddDrink(); render();
+  }
+  function deleteDrink(idx, ev) {
+    ev.stopPropagation();
+    state.customDrinks.splice(idx, 1);
+    save(); render();
+  }
+
+  function updateLimit(v) {
+    state.limit = parseInt(v);
+    document.getElementById('limitVal').textContent = v + '杯';
+    document.getElementById('ringMax').textContent = v;
+    if (state.drinks.length < state.limit) alertedOver = false;
+    if (state.drinks.length < state.limit - state.warnBefore) alertedWarn = false;
+    save(); render();
+  }
+  function updateWarn(v) {
+    state.warnBefore = parseInt(v);
+    document.getElementById('warnVal').textContent = v + '杯前';
+    if (state.drinks.length < state.limit - state.warnBefore) alertedWarn = false;
+    save(); render();
+  }
+  function updatePaceTarget(v) {
+    state.paceTarget = parseInt(v);
+    document.getElementById('paceTargetVal').textContent = v + '分';
+    save(); render();
+  }
+
+  function confirmReset() { document.getElementById('resetOverlay').classList.add('show'); }
+  function closeReset() { document.getElementById('resetOverlay').classList.remove('show'); }
+  function doReset() {
+    state.drinks = [];
+    alertedWarn = false; alertedOver = false;
+    stopTimer(); save(); render(); closeReset();
+  }
+
+  function startTimer() { timerInterval = setInterval(render, 10000); }
+  function stopTimer() { if (timerInterval) { clearInterval(timerInterval); timerInterval = null; } }
+
+  function checkAlerts() {
+    const count = state.drinks.length;
+    if (count >= state.limit && !alertedOver) {
+      alertedOver = true;
+      showAlert('🚨', '上限に達しました', `今夜は${state.limit}杯。\nここでストップしよう。\n水を1杯どうぞ。`);
+      return;
+    }
+    if (count >= state.limit - state.warnBefore && count < state.limit && !alertedWarn) {
+      alertedWarn = true;
+      showAlert('⚠️', 'もうすぐ上限です', `残り${state.limit - count}杯。\nペースを少し落とそう。`);
+    }
+  }
+  function showAlert(emoji, title, body) {
+    document.getElementById('alertEmoji').textContent = emoji;
+    document.getElementById('alertTitle').textContent = title;
+    document.getElementById('alertBody').textContent = body;
+    document.getElementById('alertOverlay').classList.add('show');
+  }
+  function closeAlert() { document.getElementById('alertOverlay').classList.remove('show'); }
+
+  function render() {
+    const drinks = state.drinks;
+    const count = drinks.length;
+    const { limit, warnBefore, paceTarget } = state;
+    const ratio = limit > 0 ? Math.min(count / limit, 1) : 0;
+
+    const circ = 2 * Math.PI * 78;
+    const ringFg = document.getElementById('ringFg');
+    ringFg.style.strokeDashoffset = circ * (1 - ratio);
+    let color = 'var(--safe)';
+    if (count >= limit) color = 'var(--accent)';
+    else if (count >= limit - warnBefore && count > 0) color = 'var(--warn)';
+    ringFg.style.stroke = color;
+    document.getElementById('ringCount').textContent = count;
+    document.getElementById('ringCount').style.color = color;
+    document.getElementById('ringMax').textContent = limit;
+
+    const msg = document.getElementById('statusMsg');
+    if (count >= limit) {
+      msg.textContent = '🚨 上限です。今夜はここまで';
+      msg.className = 'status-msg status-over';
+    } else if (count >= limit - warnBefore && count > 0) {
+      msg.textContent = `⚠️ 残り ${limit - count} 杯。ペース注意`;
+      msg.className = 'status-msg status-warn';
+    } else {
+      msg.textContent = count === 0 ? '🍺 今夜もマイペースで' : '🍺 まだ余裕あり';
+      msg.className = 'status-msg status-safe';
+    }
+
+    document.getElementById('remaining').textContent = Math.max(limit - count, 0) + '杯';
+
+    const elEl = document.getElementById('elapsed');
+    const paceEl = document.getElementById('paceVal');
+    const paceBar = document.getElementById('paceBar');
+    if (count >= 1) {
+      const first = new Date(drinks[0].time);
+      const now = new Date();
+      const elMin = Math.floor((now - first) / 60000);
+      elEl.textContent = elMin < 60 ? elMin + '分' : Math.floor(elMin/60) + 'h' + (elMin%60);
+    } else { elEl.textContent = '—'; }
+
+    if (count >= 2) {
+      const first = new Date(drinks[0].time);
+      const last = new Date(drinks[count-1].time);
+      const span = (last - first) / 60000;
+      const avgPace = Math.round(span / (count - 1));
+      paceEl.textContent = avgPace + '分';
+      const fastFill = Math.max(0, Math.min(100, 100 - (avgPace / paceTarget * 100)));
+      paceBar.style.width = fastFill + '%';
+      paceBar.style.background = avgPace < paceTarget * 0.6 ? 'var(--accent)'
+        : avgPace < paceTarget ? 'var(--warn)' : 'var(--safe)';
+    } else {
+      paceEl.textContent = '—';
+      paceBar.style.width = '0%';
+    }
+
+    const grid = document.getElementById('drinkGrid');
+    grid.innerHTML = state.customDrinks.map((d, i) =>
+      `<button class="drink-btn" onclick="addDrink('${d.name.replace(/'/g,"\\'")}','${d.emoji}')">
+        <span class="drink-emoji">${d.emoji}</span>
+        <span class="drink-name">${d.name}</span>
+        <span class="drink-del" onclick="deleteDrink(${i}, event)">✕</span>
+      </button>`
+    ).join('');
+
+    const logList = document.getElementById('logList');
+    if (!count) {
+      logList.innerHTML = '<div class="log-empty">まだ記録なし</div>';
+    } else {
+      logList.innerHTML = [...drinks].reverse().map((d, revIdx) => {
+        const realIdx = drinks.length - 1 - revIdx;
+        const t = new Date(d.time);
+        const timeStr = t.getHours() + ':' + String(t.getMinutes()).padStart(2,'0');
+        let gap = '';
+        if (realIdx > 0) {
+          const prev = new Date(drinks[realIdx-1].time);
+          const diff = Math.round((t - prev) / 60000);
+          gap = `<span class="log-gap">前から ${diff}分</span>`;
+        }
+        return `<div class="log-item">
+          <span>${d.emoji} ${d.name}</span>
+          <span>${gap} <span class="log-time">${timeStr}</span></span>
+        </div>`;
+      }).join('');
+    }
+
+    document.getElementById('limitVal').textContent = limit + '杯';
+    document.getElementById('warnVal').textContent = warnBefore + '杯前';
+    document.getElementById('paceTargetVal').textContent = paceTarget + '分';
+  }
+
+  load();
+  if (state.drinks.length) startTimer();
+  render();
+</script>
+</body>
+</html>
